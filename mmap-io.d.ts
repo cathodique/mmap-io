@@ -4,9 +4,9 @@ declare type MapProtectionFlags = MmapIo["PROT_NONE"] | MmapIo["PROT_READ"] | Mm
 declare type MapFlags = MmapIo["MAP_PRIVATE"] | MmapIo["MAP_SHARED"] | MmapIo["MAP_NONBLOCK"] | MmapIo["MAP_POPULATE"] | number;
 declare type MapAdvise = MmapIo["MADV_NORMAL"] | MmapIo["MADV_RANDOM"] | MmapIo["MADV_SEQUENTIAL"] | MmapIo["MADV_WILLNEED"] | MmapIo["MADV_DONTNEED"];
 declare type MmapIo = {
-    map(size: number, protection: MapProtectionFlags, flags: MapFlags, fd: FileDescriptor, offset?: number, advise?: MapAdvise, name?: Buffer): Number;
+    map(size: number, protection: MapProtectionFlags, flags: MapFlags, fd: FileDescriptor, offset?: number, advise?: MapAdvise, name?: Buffer): number;
     tobuffer(bufferId: number, from: number, to: number): Buffer;
-    unmap(size: number, protection: MapProtectionFlags, flags: MapFlags, fd: FileDescriptor, offset?: number, advise?: MapAdvise, name?: Buffer): Number;
+    unmap(bufferId: number): void;
     advise(buffer: Buffer, offset: number, length: number, advise: MapAdvise): void;
     advise(buffer: Buffer, advise: MapAdvise): void;
     incore(buffer: Buffer): [number, number];

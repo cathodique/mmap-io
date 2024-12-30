@@ -231,6 +231,8 @@ JS_FN(mmap_tobuffer) {
 JS_FN(mmap_unmap) {
     Nan::HandleScope();
 
+    if (!info[0]->IsNumber())                         return Nan::ThrowError("unmap: bufferId (arg[0]) must be an integer");
+
     const uint32_t data = get_v<uint32_t>(info[0]);
 
     if (!valid_mmaps.contains(data)) {
