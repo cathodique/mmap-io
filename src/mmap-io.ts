@@ -49,7 +49,21 @@ type MmapIo = {
         offset?: number,
         advise?: MapAdvise,
         name?: Buffer
+    ): Number
+    tobuffer(
+        bufferId: number,
+        from: number,
+        to: number,
     ): Buffer
+    unmap(
+        size: number,
+        protection: MapProtectionFlags,
+        flags: MapFlags,
+        fd: FileDescriptor,
+        offset?: number,
+        advise?: MapAdvise,
+        name?: Buffer
+    ): Number
 
     advise(
         buffer: Buffer,

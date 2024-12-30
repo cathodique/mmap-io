@@ -8,8 +8,11 @@
     versions, sans advise and sync.
 */
 #include <nan.h>
+#include <stdlib.h>
 #include <errno.h>
 #include <string>
+#include <unordered_map>
+#include <unordered_set>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -26,20 +29,25 @@ using namespace v8;
 // Just a bit more clear as to intent
 #define JS_FN(a) NAN_METHOD(a)
 
+enum mmap_s {
+  valid,
+  deleted,
+};
+
 // This lib is one of those pieces of code where clarity is better then puny micro opts (in
 // comparison to the massive blocking that will occur when the data is first read from disk)
 // Since casting `size` to `void*` feels a little "out there" considering that void* may be
 // 32b or 64b (or, I dunno, 47b on some quant particle system), we throw this struct in.
 struct MMap {
-    MMap(char* data, size_t size) : data(data), size(size) {}
+    MMap(char* data, size_t size) : data(data), size(size), status(valid) {}
     char*   data = nullptr;
     size_t  size = 0;
+    mmap_s  status = valid;
 };
 
 
-void do_mmap_cleanup(char* data, void* hint) {
-    auto map_info = static_cast<MMap*>(hint);
-    munmap(data, map_info->size);
+void do_mmap_cleanup(MMap* map_info) {
+    munmap(map_info->data, map_info->size);
     delete map_info;
 }
 
@@ -100,10 +108,13 @@ inline auto get_obj(VT v8_obj) -> Local<Object> {
     return Nan::To<Object>(v8_obj).ToLocalChecked();
 }
 
+std::unordered_map<uint, MMap*> valid_mmaps = {};
+uint curidx = 0;
+
 JS_FN(mmap_map) {
     Nan::HandleScope();
 
-    if (info.Length() < 4 && info.Length() > 7) {
+    if (info.Length() < 4 || info.Length() > 7) {
         return Nan::ThrowError(
             "map() takes 4, 5, 6 or 7 arguments: (size :int, protection :int, flags :int, fd :int [, offset :int [, advise :int [, name :string ]])."
         );
@@ -164,14 +175,81 @@ JS_FN(mmap_map) {
         }
 
         auto map_info = new MMap(data, size);
-        Nan::MaybeLocal<Object> buf = node::Buffer::New(
-            v8::Isolate::GetCurrent(), data, size, do_mmap_cleanup, static_cast<void*>(map_info));
-        if (buf.IsEmpty()) {
-            return Nan::ThrowError(std::string("couldn't allocate Node Buffer()").c_str());
-        } else {
-            info.GetReturnValue().Set(buf.ToLocalChecked());
-        }
+
+        valid_mmaps[curidx] = map_info;
+
+        info.GetReturnValue().Set(Nan::New(curidx++));
     }
+}
+
+
+
+// Shower thought:
+// To escape the memory-cage, why not simply make a package that implements Buffer?
+// It would have the same methods and properties, but would apply those to memory
+// regions outside of that permitted by the memory cage
+JS_FN(mmap_tobuffer) {
+    Nan::HandleScope();
+
+    if (info.Length() < 1 || info.Length() > 3) {
+        return Nan::ThrowError(
+            "tobuffer takes one to three arguments: ptr:pointer[, from:int[, to:int]]"
+        );
+    }
+
+    if (!info[0]->IsNumber())                         return Nan::ThrowError("tobuffer: bufferId (arg[0]) must be an integer");
+    if (info.Length() >= 2 && !info[1]->IsNumber())   return Nan::ThrowError("tobuffer: from (arg[1]) must be an integer");
+    if (info.Length() >= 3 && !info[2]->IsNumber())   return Nan::ThrowError("tobuffer: to (arg[2]) must be an integer");
+
+    const uint32_t data = get_v<uint32_t>(info[0]);
+
+    if (!valid_mmaps.contains(data)) {
+        return Nan::ThrowError(
+            "Illegal memory access: pointer ptr was never mmap'ed in the first place"
+        );
+    }
+
+    auto map_info = valid_mmaps[data];
+
+    if (map_info->status != valid) {
+        return Nan::ThrowError(
+            "Illegal memory access: mmap was unmapped"
+        );
+    }
+
+    const uintptr_t from = static_cast<uintptr_t>(get_v<int>(info[1], 0));
+    const uintptr_t to = static_cast<uintptr_t>(get_v<int>(info[1], map_info->size));
+
+    Nan::MaybeLocal<Object> buf = node::Buffer::Copy(v8::Isolate::GetCurrent(), &map_info->data[from], to - from);
+    if (buf.IsEmpty()) {
+        return Nan::ThrowError(std::string("couldn't allocate Node Buffer()").c_str());
+    } else {
+        info.GetReturnValue().Set(buf.ToLocalChecked());
+    }
+}
+
+JS_FN(mmap_unmap) {
+    Nan::HandleScope();
+
+    const uint32_t data = get_v<uint32_t>(info[0]);
+
+    if (!valid_mmaps.contains(data)) {
+        return Nan::ThrowError(
+            "Unable to munmap: pointer ptr was never mmap'ed in the first place"
+        );
+    }
+
+    auto map_info = valid_mmaps[data];
+
+    if (map_info->status != valid) {
+        return Nan::ThrowError(
+            "Unable to munmap: mmap was unmapped"
+        );
+    }
+
+    do_mmap_cleanup(map_info);
+
+    map_info->status = deleted;
 }
 
 JS_FN(mmap_advise) {
@@ -370,6 +448,8 @@ NAN_MODULE_INIT(Init) {
 
 
     set_fn_prop("map", mmap_map);
+    set_fn_prop("tobuffer", mmap_tobuffer);
+    set_fn_prop("unmap", mmap_unmap);
     set_fn_prop("advise", mmap_advise);
     set_fn_prop("incore", mmap_incore);
 

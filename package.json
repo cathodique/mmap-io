@@ -1,5 +1,5 @@
 {
-    "name": "@raygun-nickj/mmap-io",
+    "name": "@cathodique/mmap-io",
     "version": "1.4.0",
     "license": "MIT",
     "author": {
@@ -14,8 +14,8 @@
         "package_name": "{module_name}-v{version}-{node_abi}-{platform}-{arch}.tar.gz",
         "host": "https://github.com/Widdershin/mmap-io/releases/download/"
     },
-    "description": "io.js/node.js mmap bindings revisited.",
-    "homepage": "https://github.com/Widdershin/mmap-io",
+    "description": "io.js/node.js mmap bindings re-revisited.",
+    "homepage": "https://github.com/cathodique/mmap-io",
     "keywords": [
         "low level",
         "file",
@@ -29,10 +29,10 @@
     ],
     "repository": {
         "type": "git",
-        "url": "https://github.com/Widdershin/mmap-io.git"
+        "url": "https://github.com/cathodique/mmap-io.git"
     },
     "bugs": {
-        "url": "http://github.com/Widdershin/mmap-io/issues"
+        "url": "http://github.com/cathodique/mmap-io/issues"
     },
     "main": "mmap-io.js",
     "files": [
@@ -55,7 +55,8 @@
         "build-es:default": "tsc && cp ./dist/mmap-io.d.ts ./",
         "rebuild": "node-pre-gyp reinstall --build-from-source",
         "prepare": "npm run build",
-        "install": "npm run build-addon",
+        "install": "npm run fixnan && npm run build-addon",
+        "fixnan": "sed 's/^#include .nan_scriptorigin\\.h./\\/\\/ #include nan_scriptorigin.h/' ./node_modules/nan/nan.h > ./node_modules/nan/nan.h.new && mv ./node_modules/nan/nan.h.new ./node_modules/nan/nan.h",
         "build-binary-x64": "node-pre-gyp rebuild && node-pre-gyp package",
         "build-binary-x86": "node-pre-gyp rebuild --target_arch=ia32 && node-pre-gyp package --target_arch=ia32",
         "push-binary": "node-pre-gyp-github publish",
@@ -63,15 +64,15 @@
         "watch": "while true; do (npm run build; inotifywait -qre close_write,moved_to --exclude '\\.git' ./src/; ) done;"
     },
     "devDependencies": {
+        "@mapbox/node-pre-gyp": "^1.0.11",
         "@types/node": "^11.10.5",
         "livescript": "^1.6.0",
         "node-pre-gyp-github": "^1.4.4",
         "typescript": "^3.5.3"
     },
     "dependencies": {
-        "@mapbox/node-pre-gyp": "^1.0.9",
         "errno": "*",
-        "nan": "^2.16.0",
+        "nan": "^2.22.0",
         "node-gyp": "^9.0.0",
         "run-script-os": "^1.1.1"
     }
