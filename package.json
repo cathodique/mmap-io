@@ -1,6 +1,6 @@
 {
     "name": "@cathodique/mmap-io",
-    "version": "1.4.0",
+    "version": "1.4.1",
     "license": "MIT",
     "author": {
         "name": "Oscar Campbell",
@@ -55,8 +55,8 @@
         "build-es:default": "tsc && cp ./dist/mmap-io.d.ts ./",
         "rebuild": "node-pre-gyp reinstall --build-from-source",
         "prepare": "npm run build",
-        "install": "npm run fixnan && npm run build-addon",
-        "fixnan": "sed 's/^#include .nan_scriptorigin\\.h./\\/\\/ #include nan_scriptorigin.h/' ./node_modules/nan/nan.h > ./node_modules/nan/nan.h.new && mv ./node_modules/nan/nan.h.new ./node_modules/nan/nan.h",
+        "install": "npm run build-addon",
+        "postinstall": "sed 's/^#include .nan_scriptorigin\\.h./\\/\\/ #include nan_scriptorigin.h/' ./node_modules/nan/nan.h > ./node_modules/nan/nan.h.new && mv ./node_modules/nan/nan.h.new ./node_modules/nan/nan.h",
         "build-binary-x64": "node-pre-gyp rebuild && node-pre-gyp package",
         "build-binary-x86": "node-pre-gyp rebuild --target_arch=ia32 && node-pre-gyp package --target_arch=ia32",
         "push-binary": "node-pre-gyp-github publish",
