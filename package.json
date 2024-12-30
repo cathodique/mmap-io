@@ -73,7 +73,7 @@
     "dependencies": {
         "errno": "*",
         "nan": "^2.22.0",
-        "node-gyp": "^9.0.0",
-        "run-script-os": "^1.1.1"
+        "node-gyp": "^9.4.1",
+        "run-script-os": "^1.1.6"
     }
 }
