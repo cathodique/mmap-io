@@ -218,9 +218,9 @@ JS_FN(mmap_tobuffer) {
     }
 
     const uintptr_t from = static_cast<uintptr_t>(get_v<int>(info[1], 0));
-    const uintptr_t to = static_cast<uintptr_t>(get_v<int>(info[1], map_info->size));
+    const uintptr_t to = static_cast<uintptr_t>(get_v<int>(info[2], map_info->size));
 
-    Nan::MaybeLocal<Object> buf = node::Buffer::Copy(v8::Isolate::GetCurrent(), &map_info->data[from], to - from);
+    Nan::MaybeLocal<Object> buf = node::Buffer::Copy(v8::Isolate::GetCurrent(), &map_info->data + from, to - from);
     if (buf.IsEmpty()) {
         return Nan::ThrowError(std::string("couldn't allocate Node Buffer()").c_str());
     } else {
