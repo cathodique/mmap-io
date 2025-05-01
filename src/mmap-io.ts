@@ -53,7 +53,7 @@ type MmapIo = {
     getbyte(
         bufferId: number,
         byte: number,
-    ): Buffer
+    ): number
     unmap(
         bufferId: number
     ): void
