@@ -191,7 +191,7 @@ JS_FN(mmap_map) {
 JS_FN(mmap_getbyte) {
     Nan::HandleScope();
 
-    if (info.Length() == 2) {
+    if (info.Length() != 2) {
         return Nan::ThrowError(
             "getbyte takes two arguments: ptr:pointer, bytepos:bigint"
         );
