@@ -50,10 +50,9 @@ type MmapIo = {
         advise?: MapAdvise,
         name?: Buffer
     ): number
-    tobuffer(
+    getbyte(
         bufferId: number,
-        from: number,
-        to: number,
+        byte: number,
     ): Buffer
     unmap(
         bufferId: number

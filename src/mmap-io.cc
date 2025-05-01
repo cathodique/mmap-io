@@ -188,18 +188,17 @@ JS_FN(mmap_map) {
 // To escape the memory-cage, why not simply make a package that implements Buffer?
 // It would have the same methods and properties, but would apply those to memory
 // regions outside of that permitted by the memory cage
-JS_FN(mmap_tobuffer) {
+JS_FN(mmap_getbyte) {
     Nan::HandleScope();
 
     if (info.Length() < 1 || info.Length() > 3) {
         return Nan::ThrowError(
-            "tobuffer takes one to three arguments: ptr:pointer[, from:int[, to:int]]"
+            "getbyte takes two arguments: ptr:pointer, bytepos:bigint"
         );
     }
 
-    if (!info[0]->IsNumber())                         return Nan::ThrowError("tobuffer: bufferId (arg[0]) must be an integer");
-    if (info.Length() >= 2 && !info[1]->IsNumber())   return Nan::ThrowError("tobuffer: from (arg[1]) must be an integer");
-    if (info.Length() >= 3 && !info[2]->IsNumber())   return Nan::ThrowError("tobuffer: to (arg[2]) must be an integer");
+    if (!info[0]->IsNumber())                         return Nan::ThrowError("getbyte: bufferId (arg[0]) must be an integer");
+    if (info.Length() >= 2 && !info[1]->IsNumber())   return Nan::ThrowError("getbyte: byte (arg[1]) must be an integer");
 
     const uint32_t data = get_v<uint32_t>(info[0]);
 
@@ -217,15 +216,9 @@ JS_FN(mmap_tobuffer) {
         );
     }
 
-    const uintptr_t from = static_cast<uintptr_t>(get_v<int>(info[1], 0));
-    const uintptr_t to = static_cast<uintptr_t>(get_v<int>(info[2], map_info->size));
+    const uintptr_t at = static_cast<uintptr_t>(get_v<int>(info[1], 0));
 
-    Nan::MaybeLocal<Object> buf = node::Buffer::Copy(v8::Isolate::GetCurrent(), &map_info->data[from], to - from);
-    if (buf.IsEmpty()) {
-        return Nan::ThrowError(std::string("couldn't allocate Node Buffer()").c_str());
-    } else {
-        info.GetReturnValue().Set(buf.ToLocalChecked());
-    }
+    info.GetReturnValue().Set(Nan::New(*(reinterpret_cast<int*>(&map_info->data[at]))));
 }
 
 JS_FN(mmap_unmap) {
@@ -450,7 +443,7 @@ NAN_MODULE_INIT(Init) {
 
 
     set_fn_prop("map", mmap_map);
-    set_fn_prop("tobuffer", mmap_tobuffer);
+    set_fn_prop("getbyte", mmap_getbyte);
     set_fn_prop("unmap", mmap_unmap);
     set_fn_prop("advise", mmap_advise);
     set_fn_prop("incore", mmap_incore);
