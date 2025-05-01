@@ -218,7 +218,7 @@ JS_FN(mmap_getbyte) {
 
     const uintptr_t at = static_cast<uintptr_t>(get_v<int>(info[1], 0));
 
-    info.GetReturnValue().Set(Nan::New<v8::Integer>(static_cast<int>(map_info->data[at])));
+    info.GetReturnValue().Set(Nan::New<v8::Integer>(map_info->data[at]));
 }
 
 JS_FN(mmap_unmap) {
