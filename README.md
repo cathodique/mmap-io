@@ -2,7 +2,9 @@
 
 # Fork Notice
 
-This is a fork of @raygun-nickj/mmap-io, as the upstream repo is no longer maintained. (Plus, it is incompatible with the electron memory cage)
+This is a fork of @raygun-nickj/mmap-io, **made specifically for [Cathodique](https://cathodique.de)**. This means two things:
+- You may not find use for some functions in this library
+- This library might be less optimized than the aforementionned library, since it is made to run with respect to the electron memory cage.
 
 This version of mmap-io builds on Node v8-23, and provides binaries for Windows, macOS and Linux via @mapbox/node-pre-gyp.
 

@@ -54,6 +54,30 @@ type MmapIo = {
         bufferId: number,
         byte: number,
     ): number
+    getbuffer(
+        bufferId: number,
+    ): Buffer
+    getbufferarea(
+        bufferId: number,
+        baseY: number,
+        baseX: number,
+        h: number,
+        w: number,
+
+        stride: number,
+        bytesPerPixel: number,
+    ): Buffer
+    updatebufferarea(
+        bufferId: number,
+        outBuffer: Buffer,
+        baseY: number,
+        baseX: number,
+        h: number,
+        w: number,
+
+        stride: number,
+        bytesPerPixel: number,
+    ): Buffer
     unmap(
         bufferId: number
     ): void

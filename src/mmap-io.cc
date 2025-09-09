@@ -7,6 +7,7 @@
     Inspired by Ben Noordhuis module node-mmap - which does the same thing for older node
     versions, sans advise and sync.
 */
+#include <cstdint>
 #include <nan.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -45,6 +46,11 @@ struct MMap {
     mmap_s  status = valid;
 };
 
+void do_mmap_cleanup_v8(char* data, void* hint) {
+    auto map_info = static_cast<MMap*>(hint);
+    munmap(data, map_info->size);
+    delete map_info;
+}
 
 void do_mmap_cleanup(MMap* map_info) {
     munmap(map_info->data, map_info->size);
@@ -219,6 +225,166 @@ JS_FN(mmap_getbyte) {
     const uintptr_t at = static_cast<uintptr_t>(get_v<int>(info[1], 0));
 
     info.GetReturnValue().Set(Nan::New<v8::Integer>(static_cast<uint8_t>(map_info->data[at])));
+}
+JS_FN(mmap_getbuffer) {
+    Nan::HandleScope();
+
+    if (info.Length() != 1) {
+        return Nan::ThrowError(
+            "mmap_getbuffer takes one arguments: ptr:pointer"
+        );
+    }
+
+    if (!info[0]->IsNumber())                         return Nan::ThrowError("getbuffer: bufferId (arg[0]) must be an integer");
+
+    const uint32_t data = get_v<uint32_t>(info[0]);
+
+    if (!valid_mmaps.contains(data)) {
+        return Nan::ThrowError(
+            "Illegal memory access: pointer ptr was never mmap'ed in the first place"
+        );
+    }
+
+    auto map_info = valid_mmaps[data];
+
+    if (map_info->status != valid) {
+        return Nan::ThrowError(
+            "Illegal memory access: mmap was unmapped"
+        );
+    }
+
+    // const uintptr_t at = static_cast<uintptr_t>(get_v<int>(info[1], 0));
+    Nan::MaybeLocal<Object> buf = node::Buffer::Copy(
+        v8::Isolate::GetCurrent(), map_info->data, map_info->size);
+    info.GetReturnValue().Set(buf.ToLocalChecked());
+}
+JS_FN(mmap_getbufferarea) {
+    Nan::HandleScope();
+
+    if (info.Length() != 7) {
+        return Nan::ThrowError(
+            "mmap_getbufferarea takes five arguments: ptr:pointer, y:int, x:int, h:int, w:int"
+        );
+    }
+
+    if (!info[0]->IsNumber())                         return Nan::ThrowError("getbufferarea: bufferId (arg[0]) must be an integer");
+    if (!info[1]->IsNumber())                         return Nan::ThrowError("getbufferarea: y (arg[1]) must be an integer");
+    if (!info[2]->IsNumber())                         return Nan::ThrowError("getbufferarea: x (arg[2]) must be an integer");
+    if (!info[3]->IsNumber())                         return Nan::ThrowError("getbufferarea: h (arg[3]) must be an integer");
+    if (!info[4]->IsNumber())                         return Nan::ThrowError("getbufferarea: w (arg[4]) must be an integer");
+    if (!info[5]->IsNumber())                         return Nan::ThrowError("getbufferarea: stride (arg[5]) must be an integer");
+    if (!info[6]->IsNumber())                         return Nan::ThrowError("getbufferarea: bytes_per_pixel (arg[6]) must be an integer");
+
+    const uint32_t data = get_v<uint32_t>(info[0]);
+    const uint32_t base_y = get_v<uint32_t>(info[1]);
+    const uint32_t base_x = get_v<uint32_t>(info[2]);
+    const uint32_t h = get_v<uint32_t>(info[3]);
+    const uint32_t w = get_v<uint32_t>(info[4]);
+    const uint32_t stride = get_v<uint32_t>(info[5]);
+    const uint32_t bytes_per_pixel = get_v<uint32_t>(info[6]);
+
+    if (!valid_mmaps.contains(data)) {
+        return Nan::ThrowError(
+            "Illegal memory access: pointer ptr was never mmap'ed in the first place"
+        );
+    }
+
+    auto map_info = valid_mmaps[data];
+
+    if (map_info->status != valid) {
+        return Nan::ThrowError(
+            "Illegal memory access: mmap was unmapped"
+        );
+    }
+
+    // const uintptr_t at = static_cast<uintptr_t>(get_v<int>(info[1], 0));
+    auto buf = node::Buffer::New(v8::Isolate::GetCurrent(), map_info->size);
+
+    auto value = buf.ToLocalChecked();
+
+    if ((base_x + w) * bytes_per_pixel > stride) {
+        return Nan::ThrowError(
+            "Avoided moderate overrun: last line index is bigger than stride"
+        );
+    }
+    if ((h + base_y - 1) * stride + (base_x + w) * bytes_per_pixel > map_info->size) {
+        return Nan::ThrowError(
+            "Avoided critical overrun: last pixel index is bigger than mmap size"
+        );
+    }
+
+    auto dest = node::Buffer::Data(value);
+    for (auto y = base_y * stride; y < (h + base_y) * stride; y += stride) {
+        std::memcpy(dest + y - base_y * stride, map_info->data + y + base_x * bytes_per_pixel, w * bytes_per_pixel);
+    }
+
+    info.GetReturnValue().Set(value);
+}
+JS_FN(mmap_updatebufferarea) {
+    Nan::HandleScope();
+
+    if (info.Length() != 8) {
+        return Nan::ThrowError(
+            "mmap_updatebufferarea takes eight arguments: ptr:pointer, buf:Buffer, y:int, x:int, h:int, w:int, stride:int, bytes_per_pixel:int"
+        );
+    }
+
+    if (!info[0]->IsNumber())                         return Nan::ThrowError("getbufferarea: bufferId (arg[0]) must be an integer");
+    if (!info[1]->IsObject() || !node::Buffer::HasInstance(info[1]))                         return Nan::ThrowError("getbufferarea: outbuf (arg[1]) must be an object");
+    if (!info[2]->IsNumber())                         return Nan::ThrowError("getbufferarea: y (arg[2]) must be an integer");
+    if (!info[3]->IsNumber())                         return Nan::ThrowError("getbufferarea: x (arg[3]) must be an integer");
+    if (!info[4]->IsNumber())                         return Nan::ThrowError("getbufferarea: h (arg[4]) must be an integer");
+    if (!info[5]->IsNumber())                         return Nan::ThrowError("getbufferarea: w (arg[5]) must be an integer");
+    if (!info[6]->IsNumber())                         return Nan::ThrowError("getbufferarea: stride (arg[6]) must be an integer");
+    if (!info[7]->IsNumber())                         return Nan::ThrowError("getbufferarea: bytes_per_pixel (arg[7]) must be an integer");
+
+    const uint32_t data = get_v<uint32_t>(info[0]);
+    const uint32_t base_y = get_v<uint32_t>(info[2]);
+    const uint32_t base_x = get_v<uint32_t>(info[3]);
+    const uint32_t h = get_v<uint32_t>(info[4]);
+    const uint32_t w = get_v<uint32_t>(info[5]);
+    const uint32_t stride = get_v<uint32_t>(info[6]);
+    const uint32_t bytes_per_pixel = get_v<uint32_t>(info[7]);
+
+    if (!valid_mmaps.contains(data)) {
+        return Nan::ThrowError(
+            "Illegal memory access: pointer ptr was never mmap'ed in the first place"
+        );
+    }
+
+    auto map_info = valid_mmaps[data];
+
+    if (map_info->status != valid) {
+        return Nan::ThrowError(
+            "Illegal memory access: mmap was unmapped"
+        );
+    }
+
+    // const uintptr_t at = static_cast<uintptr_t>(get_v<int>(info[1], 0));
+    // auto buf = node::Buffer::New(v8::Isolate::GetCurrent(), map_info->size);
+
+    if ((base_x + w) * bytes_per_pixel > stride) {
+        return Nan::ThrowError(
+            "Avoided moderate overrun: last line index is bigger than stride"
+        );
+    }
+    if ((h + base_y - 1) * stride + (base_x + w) * bytes_per_pixel > map_info->size) {
+        return Nan::ThrowError(
+            "Avoided critical overrun: last pixel index is bigger than mmap size"
+        );
+    }
+    if ((h + base_y - 1) * stride + (base_x + w) * bytes_per_pixel > node::Buffer::Length(info[1])) {
+        return Nan::ThrowError(
+            "Avoided critical overrun: last pixel index is bigger than buffer size"
+        );
+    }
+
+    auto dest = node::Buffer::Data(info[1]);
+    for (auto y = base_y * stride; y < (h + base_y) * stride; y += stride) {
+        std::memcpy(dest + y + base_x * bytes_per_pixel, map_info->data + y + base_x * bytes_per_pixel, w * bytes_per_pixel);
+    }
+
+    info.GetReturnValue().Set(info[1]);
 }
 
 JS_FN(mmap_unmap) {
@@ -444,6 +610,9 @@ NAN_MODULE_INIT(Init) {
 
     set_fn_prop("map", mmap_map);
     set_fn_prop("getbyte", mmap_getbyte);
+    set_fn_prop("getbuffer", mmap_getbuffer);
+    set_fn_prop("getbufferarea", mmap_getbufferarea);
+    set_fn_prop("updatebufferarea", mmap_updatebufferarea);
     set_fn_prop("unmap", mmap_unmap);
     set_fn_prop("advise", mmap_advise);
     set_fn_prop("incore", mmap_incore);

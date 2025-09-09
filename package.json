@@ -34,7 +34,7 @@
     "bugs": {
         "url": "http://github.com/cathodique/mmap-io/issues"
     },
-    "main": "mmap-io.js",
+    "main": "./dist/mmap-io.js",
     "files": [
         "binding.gyp",
         "LICENSE",
@@ -71,8 +71,11 @@
     "dependencies": {
         "@mapbox/node-pre-gyp": "^1.0.11",
         "errno": "*",
-        "nan": "^2.22.0",
+        "nan": "^2.23.0",
         "node-gyp": "^9.4.1",
         "run-script-os": "^1.1.6"
+    },
+    "overrides": {
+      "nan": "^2.23.0"
     }
 }

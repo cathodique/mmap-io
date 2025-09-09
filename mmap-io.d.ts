@@ -6,6 +6,9 @@ declare type MapAdvise = MmapIo["MADV_NORMAL"] | MmapIo["MADV_RANDOM"] | MmapIo[
 declare type MmapIo = {
     map(size: number, protection: MapProtectionFlags, flags: MapFlags, fd: FileDescriptor, offset?: number, advise?: MapAdvise, name?: Buffer): number;
     getbyte(bufferId: number, byte: number): number;
+    getbuffer(bufferId: number): Buffer;
+    getbufferarea(bufferId: number, baseY: number, baseX: number, h: number, w: number, stride: number, bytesPerPixel: number): Buffer;
+    updatebufferarea(bufferId: number, outBuffer: Buffer, baseY: number, baseX: number, h: number, w: number, stride: number, bytesPerPixel: number): Buffer;
     unmap(bufferId: number): void;
     advise(buffer: Buffer, offset: number, length: number, advise: MapAdvise): void;
     advise(buffer: Buffer, advise: MapAdvise): void;
